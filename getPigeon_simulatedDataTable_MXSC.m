@@ -1,4 +1,4 @@
-function dataTable_ = getPigeon_simulatedDataTable(dataTable, options)
+function dataTable_ = getPigeon_simulatedDataTable_MXSC(dataTable, options)
 %
 % Returns:
 %   dataTable_ as in getPigeon_dataTable
@@ -9,10 +9,13 @@ function dataTable_ = getPigeon_simulatedDataTable(dataTable, options)
 % Arguments
 arguments
     dataTable
-    options.generativeMean = 0.05;
-    options.generativeSTD = 0.15;
-    options.numTrials = 600;
+    options.generativeMean = 0.01;
+    options.generativeSTD = 0.05;
+    options.numTrials = 610;
     options.maxStepsPerTrial = 50;
+    % set block-indexed boundType -- Ishan
+    options.boundType = "fixed"; %"fixed", "true", "var", "changepoint", "counterfactual", "varBySNR"
+        % options.boundType = repelem({"fixed"}, numBlocks);     options.boundMean = 0;
     options.boundMean = 0;
     options.boundSTD = 0;
     options.boundSlope = 0;
@@ -20,7 +23,6 @@ arguments
     options.NDTMin = 1;
     options.NDTmax = 2;
     options.lapseRate = 0;
-    options.boundType = 'given'; %'fixed', 'true', 'var', 'varBySNR'
     options.stepsPerBlock = 600;
     options.P2Psteps = 1;
     options.P2Pcoins = 0;
@@ -28,16 +30,18 @@ arguments
     options.coinsLostPerError = 0;
     options.stepsLostPerError = 0;
     options.bounds = [];
+    options.changePoint = 0;
+    options.snrs = [];
 end
 
 % hard-coding in definitions of blocks 1-6 in Alice's data
 blockDefaults = struct( ...
-    'stepsPerBlock',            {600 600 600 600 600 600}, ...
-    'P2Psteps',                 {1 1 1 1 1 1}, ...
-    'P2Pcoins',                 {0 0 0 0 0 0}, ...
-    'coinsGainedPerCorrect',    {1 1 1 1 1 1}, ...
-    'coinsLostPerError',        {0 4 0 0 4 0}, ...
-    'stepsLostPerError',        {0 0 30 0 0 30});
+    'stepsPerBlock',            {600 600 600 600 600}, ... 600 600 600 600 600}, ...
+    'P2Psteps',                 {1 1 1 1 1}, ... 1 1 1 1 1}, ...
+    'P2Pcoins',                 {0 0 0 0 0}, ...  0 0 0 0 0}, ...
+    'coinsGainedPerCorrect',    {1 1 1 1 1}, ... 1 1 1 1 1}, ...
+    'coinsLostPerError',        {1 1 1 1 1}, ... 4 0 0 4 0}, ...
+    'stepsLostPerError',        {0 0 0 0 0}); ... 0 30 0 0 30});
 
 % Make blockSpecs -- matrix of option structs to run simulations
 %   rows are subjects
@@ -49,8 +53,11 @@ if nargin >= 1 && istable(dataTable)
     blocks = nonanunique(dataTable.blockIndex);
     numBlocks = length(blocks);
     Lgood = dataTable.trialNumber & dataTable.RT>=0; % non-zero RT
-    blockSpecs = repmat(options, numSubjects, numBlocks);    
 
+
+    blockSpecs = repmat(options, numSubjects, numBlocks);
+
+    
     % Loop through the blocks and subjects
     for bb = 1:numBlocks
 
@@ -70,18 +77,15 @@ if nargin >= 1 && istable(dataTable)
             nSNRs = length(SNRs);
             % parse bound type
             switch blockSpecs(ss,bb).boundType
-                case 'given'
-                    blockSpecs(ss,bb).boundSTD = 0;
                 case 'fixed'
-                    absBounds = abs(dataTable.bound(Lbs));
-                    blockSpecs(ss,bb).boundMean = median(absBounds,'omitnan');
+                    blockSpecs(ss,bb).boundMean = median(dataTable.absBound(Lbs),'omitnan');
                     blockSpecs(ss,bb).boundSTD = 0;
                 case 'true'
-                    blockSpecs(ss,bb).bounds = abs(dataTable.bound(Lbs));
+                    blockSpecs(ss,bb).boundMean = 0;
+                    blockSpecs(ss,bb).bounds = dataTable.absBound(Lbs);
                 case 'var'
-                    absBounds = abs(dataTable.bound(Lbs));
-                    blockSpecs(ss,bb).boundMean = median(absBounds,'omitnan');
-                    blockSpecs(ss,bb).boundSTD = std(absBounds,'omitnan');
+                    blockSpecs(ss,bb).boundMean = median(dataTable.absBound(Lbs),'omitnan');
+                    blockSpecs(ss,bb).boundSTD = std(dataTable.absBound(Lbs),'omitnan');
                 case 'changepoint'
                     Lpc = Lbs & (dataTable.DT < dataTable.changePoint);
                     blockSpecs(ss,bb).changePoint = nonanunique(dataTable.changePoint(Lbs));
@@ -97,13 +101,12 @@ if nargin >= 1 && istable(dataTable)
                     blockSpecs(ss,bb).boundSTD = 0;
                 otherwise % 'varBySNR'
                     % Bound computed separately per snr
-                    blockSpecs(ss,bb).boundMean = nan(nSNRs,1);
-                    blockSpecs(ss,bb).boundSTD = nan(nSNRs,1);
+                    blockSpecs(ss,bb).boundMean = NaN(nSNRs,1);
+                    blockSpecs(ss,bb).boundSTD = NaN(nSNRs,1);
                     for mm = 1:nSNRs
                         Lm = Lbs & aSNRs == SNRs(mm);
-                        absBounds = abs(dataTable.bound(Lm));
-                        blockSpecs(ss,bb).boundMean(mm) = median(absBounds,'omitnan');
-                        blockSpecs(ss,bb).boundSTD(mm) = std(absBounds,'omitnan');
+                        blockSpecs(ss,bb).boundMean(mm) = median(dataTable.absBound(Lm),'omitnan');
+                        blockSpecs(ss,bb).boundSTD(mm) = std(dataTable.absBound(Lm),'omitnan');
                     end
             end
         end
@@ -112,7 +115,7 @@ elseif nargin >= 1 && isstruct(dataTable)
     % expects struct with fields:
     %   numSubjects
     %   blocks
-    blocks = nonanunique(dataTable.blocks);
+    blocks = dataTable.blocks;
     numBlocks = length(blocks);
     blockSpecs = repmat(options, dataTable.numSubjects, numBlocks);
     for bb = 1:numBlocks
@@ -132,7 +135,7 @@ tableIndex = 1;
 argNames = {'generativeMean', 'generativeSTD', 'numTrials', ...
     'maxStepsPerTrial', 'boundMean', 'boundSTD', ...
     'boundSlope', 'boundMax', 'NDTMin', ...
-    'NDTmax', 'lapseRate', 'bounds'};
+    'NDTmax', 'lapseRate', 'bounds', 'changePoint', 'snrs'};
 args = cell(1,length(argNames)*2);
 args(1:2:end) = argNames;
 
@@ -146,7 +149,7 @@ for ss = 1:size(blockSpecs,1) % Per subject
         end
 
         % Do the sim
-        [choices, rts, ~, ~, ~, snrs, steps] = getPigeon_simulatedData(args{:});
+        [choices, rts, ~, ~, ~, snrs, steps] = getPigeon_simulatedData_MXSC(args{:});
 
         % Update the data Table
         % jig changed to match real data, where steps always include zero
@@ -168,7 +171,7 @@ for ss = 1:size(blockSpecs,1) % Per subject
         % Update the table
         inds = tableIndex:tableIndex+trialCount-1;
         if isempty(inds)
-            disp(length(inds))
+            disp(length(inds));
         end
         if inds(end) > height(dataTable_)
             dataTable_ = cat(1, dataTable_, ...
@@ -184,12 +187,14 @@ for ss = 1:size(blockSpecs,1) % Per subject
         dataTable_.correct(inds) = choices(1:trialCount);
         dataTable_.coinCount(inds) = coinCounts(1:trialCount);
         dataTable_.snr(inds) = snrs(1:trialCount);
+        dataTable_.changePoint(inds) = blockSpecs(ss,bb).changePoint * ones(trialCount,1);
 
         % Get bound, etc in the standard way
         [dataTable_.bound(inds), ...
             dataTable_.DT(inds), ...
             dataTable_.RT(inds)] = ...
             getPigeon_bounds(steps(1:trialCount), choices(1:trialCount));
+        dataTable_.absBound(inds) = abs(dataTable_.bound(inds));
         dataTable_.steps(inds) = steps(1:trialCount);
 
         % update index

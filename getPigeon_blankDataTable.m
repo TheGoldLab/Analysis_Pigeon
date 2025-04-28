@@ -8,20 +8,18 @@ function dataTable_ = getPigeon_blankDataTable(numRows, varargin)
 %   2. blockIndex
 %   3. trialNumber
 %   4. bound (pigeon position in OL)
-%   5. boundLo (bottom of range)
-%   6. boundHi (bottom of range)
-%   7. RT (response time, including ndt, in number of steps)
-%   8. DT (response time, not including ndt, in number of steps)
-%   9. choice (0/1)
-%   10. correct (correct=1,error=0)
-%   11. coinCount
-%   12. steps (cell)
+%   5. RT (response time, including ndt, in number of steps)
+%   6. DT (response time, not including ndt, in number of steps)
+%   7. choice (0/1)
+%   8. correct (correct=1,error=0)
+%   9. coinCount
+%   10. snr
+%   11. steps (cell)
 
 % Defaults
 variableNames = ...
-    {'subjectIndex', 'blockIndex', 'trialNumber', 'bound', ...
-    'boundLo', 'boundHi', 'RT', 'DT', 'choice', 'correct', ...
-    'coinCount', 'steps'};
+    {'subjectIndex', 'blockIndex', 'trialNumber', 'bound', 'absBound', ...
+    'RT', 'DT', 'changePoint', 'choice', 'correct', 'coinCount', 'snr', 'steps'};
 variableTypes = cat(2, repmat("double", 1, length(variableNames)-1), 'cell');
 
 % Add optional columns
@@ -34,4 +32,3 @@ end
 dataTable_ = table('Size', [numRows, length(variableNames)], ...
     'VariableTypes', variableTypes, ...
     'VariableNames', variableNames);
-

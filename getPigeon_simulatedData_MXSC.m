@@ -24,6 +24,8 @@ arguments
     options.NDTmax              double = 3;     % non-decision time
     options.lapseRate           double = 0;     % fraction "guess" trials
     options.bounds              double = [];
+    options.changePoint         double = 0;    % for change blocks, denotes RT at which SNR change occurs
+    options.snrs                double = [];
 end
 
 % Make the DV per trial
@@ -31,18 +33,33 @@ end
 nMeans = length(options.generativeMean);
 iMeans = randi(nMeans,options.numTrials,1);
 options.generativeMean = options.generativeMean(:);
-generativeMean = repmat(options.generativeMean(iMeans),1,options.maxStepsPerTrial);
+initGenerativeMean = repmat(options.generativeMean(iMeans),1,options.maxStepsPerTrial);
 
 % DV starts at zero
-DV = cat(2, zeros(options.numTrials, 1), cumsum(normrnd(...
-    generativeMean, options.generativeSTD),2));
+if ~isempty(options.snrs)
+    generativeMean = options.snrs * options.generativeSTD;
+    DV = cumsum([ ...
+        normrnd(...
+            generativeMean(round(generativeMean,4) == round(options.generativeMean,4)), ...
+            options.generativeSTD, ...
+            options.numTrials, ...
+            options.changePoint), ...
+        normrnd(...
+            generativeMean(round(generativeMean,4) ~= round(options.generativeMean,4)), ...
+            options.generativeSTD, ...
+            options.numTrials, ...
+            options.maxStepsPerTrial - options.changePoint)], 2);
+else
+    DV = cat(2, zeros(options.numTrials, 1), cumsum(normrnd(...
+        initGenerativeMean, options.generativeSTD),2));
+end
 
 % make array of bound means -- might be one per snr
 if ~isempty(options.bounds)
-    % if given an array of bounds, choose randomly
     boundMean = options.bounds(randi(length(options.bounds), options.numTrials, 1));
+elseif ~isempty(options.snrs) || length(options.boundMean) == options.maxStepsPerTrial
+    boundMean = options.boundMean;
 else
-    % if given parameters, parse mean/std
     if length(options.boundMean) > 1 && length(options.boundMean) == nMeans
         boundMean = options.boundMean(iMeans);
         boundSTD = options.boundSTD(iMeans);
@@ -60,7 +77,13 @@ else
             boundSTD(LvariableBound)));
     end
 end
-boundMatrix = repmat(boundMean(:), 1, options.maxStepsPerTrial+1);
+
+if ~isempty(options.snrs) || length(options.boundMean) == options.maxStepsPerTrial
+    boundMatrix = repmat(boundMean(:)', options.numTrials, 1);
+else
+    boundMatrix = repmat(boundMean(:), 1, options.maxStepsPerTrial+1);
+end
+
 if options.boundSlope~=0
     boundMatrix = boundMatrix .* repmat(cat(2,linspace(1,options.boundSlope,10), ...
         options.boundSlope.*ones(1,size(boundMatrix,2)-10)), options.numTrials, 1);
@@ -82,10 +105,10 @@ else
 end
 
 % To save
-choices = nans(options.numTrials, 1);
+choices = NaN(options.numTrials, 1);
 rts = repmat(options.maxStepsPerTrial, options.numTrials, 1);
-bounds = nans(options.numTrials, 1);
-snrs = generativeMean(:,1)./options.generativeSTD;
+bounds = NaN(options.numTrials, 1);
+snrs = initGenerativeMean(:,1)./options.generativeSTD;
 steps = cell(options.numTrials,1);
 
 % disp(sprintf('looping through %d trials', options.numTrials))

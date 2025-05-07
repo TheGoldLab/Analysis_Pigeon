@@ -16,8 +16,7 @@ function [dataTable_] = getPigeon_dataTable(options)
 
 arguments
     options.taskType = 'MX'    % 'OL', 'MX', or 'PD'
-    options.dataDir = ...
-        fullfile('/Users', 'ishankalburge', 'Documents', 'penn', 'Pigeon', 'Data');
+    options.dataDir = getPigeon_dataDir();
     options.blocks = 'all';
     options.combineSNR = true; % default to 3 blocks MX/OL snrs
 end
@@ -88,7 +87,7 @@ for ff = 1:length(files)
         [tableToAppend.bound(1:end), ...
             tableToAppend.DT(1:end), ...
             tableToAppend.RT(1:end)] = ...
-            getPigeon_bounds(tableToAppend.steps, tableToAppend.choice);
+            getPigeon_bounds(tableToAppend.steps, tableToAppend.choice);% ,'snr', tableToAppend.snr);
     end
 
     % add the data

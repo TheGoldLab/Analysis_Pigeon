@@ -1,0 +1,28 @@
+%% Script to generate figures
+%
+
+
+% Real data
+dataTableOL = getPigeon_dataTable('taskType', 'OL'); % 'OL' or 'MX'
+dataTableMX = getPigeon_dataTable('taskType', 'MX'); 
+
+
+% Simulated data
+% 
+% Includes random non-decision time of 1-3 steps
+% Uses median/STD bounds from each subject for simulations
+simDataTableOL = getPigeon_simulatedDataTable(dataTableOL, 'boundType', 'true');
+simDataTableMX = getPigeon_simulatedDataTable(dataTableMX, 'boundType', 'true');
+
+% Figure 2: psychometric and chronometric curves
+Figure02_psychoChronometricCurves(dataTableMX)
+
+% Figure 3: summary of performance using mixed block 2
+dataTableMXall = getPigeon_dataTable('taskType', 'MX', 'combineSNR', false); 
+Figure03_mixedBoundSummary(dataTableMXall, 'block', 2)
+
+% Figure 4: summary of snr-dependent bounds in fixed/mixed blocks
+Figure04_mixedVsBlockedSNR(dataTableMX, dataTableOL);
+
+% Figure 5: summary of bounds vs RR is
+Figure05_RRvsBound(dataTableOL)

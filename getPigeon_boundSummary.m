@@ -25,6 +25,7 @@ function boundSummary_ = getPigeon_boundSummary(dataTable, options)
 arguments
     dataTable;
     options.correctOnly = false;
+    options.blocks = 'all' % all or vector
     options.splitBySNR = true;
     options.maxRT = 10; % array, 'all', or 'medsplit'
 end
@@ -32,18 +33,29 @@ end
 % Collect some useful variables
 subjectIndices = nonanunique(dataTable.subjectIndex);
 numSubjects = length(subjectIndices);
-numBlocks = length(nonanunique(dataTable.blockIndex));
 absBounds = abs(dataTable.bound);
+
+% parse blocks
+if isnumeric(options.blocks)
+    blockIndices = options.blocks;
+else
+    blockIndices = 1:3;
+end
+numBlocks = length(blockIndices);
 
 % Split by SNR
 if options.splitBySNR
     absSNR = abs(dataTable.snr);
     snrs = nonanunique(absSNR);
-    Lsnrs = [absSNR==snrs(1), absSNR==snrs(2)];
+    numSNRs = length(snrs);
+    Lsnrs = false(size(dataTable,1), numSNRs);
+    for rr = 1:numSNRs
+        Lsnrs(:,rr) = absSNR == snrs(rr);
+    end
 else
+    numSNRs = 1;
     Lsnrs = true(size(dataTable(:,1),1),1);
 end
-numSNRs = size(Lsnrs,2);
 
 % Check for RT dependence (sort by RT bins/median split RT/none)
 if isnumeric(options.maxRT)
@@ -71,7 +83,7 @@ for ss = 1:numSubjects
 
     % Loop through the blocks
     for bb = 1:numBlocks
-        Lsb = Lsubject & dataTable.blockIndex==bb;
+        Lsb = Lsubject & dataTable.blockIndex==blockIndices(bb);
 
         % Loop through the SNRs
         for nn = 1:numSNRs

@@ -32,8 +32,27 @@ numBlocks = length(options.blocks);
 RRMatrix_ = zeros(numBounds, numBounds, numBlocks);
 simParams = struct('numSubjects', options.numReps, 'blocks', options.blocks);
 
-if strcmpi(options.blockType, 'OL')
+if strcmpi(options.blockType, 'MX')
 
+    % Mixed block SNR
+    for b1 = 1:numBounds
+        disp([b1 numBounds])        
+        for b2 = 1:numBounds
+
+            % mixed SNR block
+            mxSNRTable = getPigeon_simulatedDataTable(simParams, ...
+                'generativeMean',   options.gMeans, ...
+                'boundType',        'varBySNR', ...
+                'boundMean',        options.bounds([b1 b2]), ...
+                'boundSTD',         [options.boundSTD options.boundSTD]);
+
+            % Save reward rates
+            RRMatrix_(b1,b2,:) = mean(getPigeon_coinSummary(mxSNRTable, ...
+                'splitBySNR', false));
+        end
+    end
+else
+    
     % Blockwise SNR
     for b1 = 1:numBounds
 
@@ -54,33 +73,15 @@ if strcmpi(options.blockType, 'OL')
         hiCoinCounts = getPigeon_coinSummary(hiSNRTable);
 
         % Save reward rates
-        for bb = 1:3 % for each block
+        for bb = 1:numBlocks % for each block
             RRMatrix_(:,b1,bb) = RRMatrix_(:,b1,bb,1) + mean(loCoinCounts(:,bb));
             RRMatrix_(b1,:,bb) = RRMatrix_(b1,:,bb,1) + mean(hiCoinCounts(:,bb));
-        end
-    end
-else
-
-    % Mixed block SNR
-    for b1 = 1:numBounds
-        disp([b1 numBounds])        
-        for b2 = 1:numBounds
-
-            % mixed SNR block
-            mxSNRTable = getPigeon_simulatedDataTable(simParams, ...
-                'generativeMean',   options.gMeans, ...
-                'boundType',        'varBySNR', ...
-                'boundMean',        options.bounds([b1 b2]), ...
-                'boundSTD',         [options.boundSTD options.boundSTD]);
-
-            % Save reward rates
-            RRMatrix_(b1,b2,:) = mean(getPigeon_coinSummary(mxSNRTable));
         end
     end
 end
 
 if options.axes
-    for bb = 1:3
+    for bb = 1:numBlocks
         axes(options.axes(bb)); cla reset; hold on;
         imagesc(options.bounds, flip(options.bounds), flipud(RRMatrix_(:,:,bb)));
         set(gca,'YDir', 'normal')

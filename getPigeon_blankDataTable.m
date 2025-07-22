@@ -19,8 +19,8 @@ function dataTable_ = getPigeon_blankDataTable(numRows, varargin)
 % Defaults
 variableNames = ...
     {'subjectIndex', 'blockIndex', 'trialNumber', 'bound', 'absBound', ...
-    'RT', 'DT', 'changePoint', 'choice', 'correct', 'coinCount', 'snr', 'steps'};
-variableTypes = cat(2, repmat("double", 1, length(variableNames)-1), 'cell');
+    'RT', 'DT', 'changePoint', 'choice', 'correct', 'coinCount', 'snr', 'steps', 'congruence'};
+variableTypes = cat(2, repmat("double", 1, length(variableNames)-2), "cell", "cell");
 
 % Add optional columns
 for nn = 1:2:nargin-2

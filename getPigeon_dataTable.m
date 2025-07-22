@@ -13,12 +13,14 @@ function [dataTable_] = getPigeon_dataTable(options)
 %   9. coinCount
 %   10. snr
 %   11. steps (cell)
+%   12. congruence (per snr)
 
 arguments
     options.taskType = 'MX'    % 'OL', 'MX', or 'PD'
     options.dataDir = getPigeon_dataDir();
     options.blocks = 'all';
     options.combineSNR = true; % default to 3 blocks MX/OL snrs
+    options.correctBias = 'boundBiasCorrection.mat';
 end
 
 % Set up the data table
@@ -86,8 +88,10 @@ for ff = 1:length(files)
     if strcmp(options.taskType, 'OL') || strcmp(options.taskType, 'MX')
         [tableToAppend.bound(1:end), ...
             tableToAppend.DT(1:end), ...
-            tableToAppend.RT(1:end)] = ...
-            getPigeon_bounds(tableToAppend.steps, tableToAppend.choice);% ,'snr', tableToAppend.snr);
+            tableToAppend.RT(1:end), ...
+            tableToAppend.congruence{1}] = ...
+            getPigeon_bounds(tableToAppend.steps, tableToAppend.choice, ...
+            'SNR',      abs(tableToAppend.snr));
     end
 
     % add the data
@@ -108,4 +112,9 @@ if all(unique(dataTable_.blockIndex)==(1:6)') && options.combineSNR
         % mixed, remove blocks 4:6
         dataTable_ = dataTable_(dataTable_.blockIndex<=3,:);
     end
+end
+
+% Possibly correct biases
+if exist(options.correctBias, 'file')
+    dataTable_ = getPigeon_biasCorrections(dataTable_, options.correctBias);
 end

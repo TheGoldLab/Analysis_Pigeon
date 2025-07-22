@@ -5,7 +5,7 @@ function Lg_ = getPigeon_goodTrialArray(dataTable, options)
 
 arguments
     dataTable = [];
-    options.DT = 2;
+    options.DT = 1;
     options.trialNumber = 10;
     options.blockIndex = [];
 end

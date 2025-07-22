@@ -14,7 +14,7 @@ function [choices, rts, DV, bounds, ndts, snrs, steps] = getPigeon_simulatedData
 arguments
     options.generativeMean      double = 0.05   % generative mean
     options.generativeSTD       double = 0.15   % generative std
-    options.numTrials           double = 100000 % Simulated trials per SNR
+    options.numTrials           double = 1000000 % Simulated trials per SNR
     options.maxStepsPerTrial    double = 50     % Total possible samples per "trial"
     options.boundMean           double = 0      % bound mean/start value
     options.boundSTD            double = 0      % bound variability (trial-to-trial)
@@ -55,7 +55,7 @@ else
     LvariableBound = boundSTD > 0;
     if any(LvariableBound)
         % variable bound
-        boundMean(LvariableBound) = max(0.01, normrnd( ...
+        boundMean(LvariableBound) = max(0.03, normrnd( ...
             boundMean(LvariableBound), ...
             boundSTD(LvariableBound)));
     end
@@ -65,12 +65,6 @@ if options.boundSlope~=0
     boundMatrix = boundMatrix .* repmat(cat(2,linspace(1,options.boundSlope,10), ...
         options.boundSlope.*ones(1,size(boundMatrix,2)-10)), options.numTrials, 1);
 end
-
-% subplot(2,1,1);
-% histogram(options.bounds, 0:0.05:0.8)
-% subplot(2,1,2);
-% histogram(boundMean, 0:0.05:0.8)
-% r = input('next')
 
 % Make array of non-decision times
 if options.NDTmax > options.NDTMin

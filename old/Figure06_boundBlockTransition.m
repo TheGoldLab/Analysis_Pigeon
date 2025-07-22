@@ -16,7 +16,7 @@ end
 wid     = 17.6; % total width
 cols    = {2,2,2};
 hts     = 5;
-[axs,~] = getPLOT_axes(options.num, wid, hts, cols, 1.6, 1.6, [], 'Pigeons', true);
+[axs,~] = getPLOT_axes(options.figureNumber, wid, hts, cols, 1.6, 1.6, [], 'Pigeons', true);
 set(axs,'Units','normalized');
 
 % For fits
@@ -70,8 +70,11 @@ for dd = 1:2
 
             % Fit tau to second block if there is learning
             tax = (0:length(block2Bound)-1)';
-            fitData(ss,rr,:) = fmincon(@(b) sum((block2Bound-fitFcn(b,tax)).^2), ...
-                [mean(block2Bound(1:3))-1 mean(block2Bound(end-10:end))./mean(block2Bound(1:10)) 15],[],[],[],[],[-3 -10 1],[3 10 100],[], fitOpts);
+            b0 = [mean(block2Bound(1:3),'omitnan')-1 mean(block2Bound(end-10:end),'omitnan')./mean(block2Bound(1:10),'omitnan') 15];
+            if all(isfinite(b0))
+                fitData(ss,rr,:) = fmincon(@(b) sum((block2Bound-fitFcn(b,tax)).^2), ...
+                    b0,[],[],[],[],[-3 -10 1],[3 10 100],[], fitOpts);
+            end
 
             % subplot(2,1,rr); cla reset; hold on;
             % plot(tax,block2Bound,'ko');

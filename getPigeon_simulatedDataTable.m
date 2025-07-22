@@ -17,8 +17,8 @@ arguments
     options.boundSTD = 0;
     options.boundSlope = 0;
     options.boundMax = 0.75;
-    options.NDTMin = 1;
-    options.NDTmax = 2;
+    options.NDTMin = 2;
+    options.NDTmax = 3;
     options.lapseRate = 0;
     options.boundType = 'given'; %'fixed', 'true', 'var', 'varBySNR'
     options.stepsPerBlock = 600;
@@ -28,11 +28,12 @@ arguments
     options.coinsLostPerError = 0;
     options.stepsLostPerError = 0;
     options.bounds = [];
+    options.correctBias = 'boundBiasCorrection.mat';
 end
 
 % hard-coding in definitions of blocks 1-6 in Alice's data
 blockDefaults = struct( ...
-    'stepsPerBlock',            {600 600 600 600 600 600}, ...
+    'stepsPerBlock',            repmat({options.stepsPerBlock}, 1, 6), ...
     'P2Psteps',                 {1 1 1 1 1 1}, ...
     'P2Pcoins',                 {0 0 0 0 0 0}, ...
     'coinsGainedPerCorrect',    {1 1 1 1 1 1}, ...
@@ -77,7 +78,9 @@ if nargin >= 1 && istable(dataTable)
                     blockSpecs(ss,bb).boundMean = median(absBounds,'omitnan');
                     blockSpecs(ss,bb).boundSTD = 0;
                 case 'true'
-                    blockSpecs(ss,bb).bounds = abs(dataTable.bound(Lbs));
+                    abounds = abs(dataTable.bound(Lbs));
+                    abounds(~isfinite(abounds)) = 0;
+                    blockSpecs(ss,bb).bounds = abounds;
                 case 'var'
                     absBounds = abs(dataTable.bound(Lbs));
                     blockSpecs(ss,bb).boundMean = median(absBounds,'omitnan');
@@ -188,8 +191,10 @@ for ss = 1:size(blockSpecs,1) % Per subject
         % Get bound, etc in the standard way
         [dataTable_.bound(inds), ...
             dataTable_.DT(inds), ...
-            dataTable_.RT(inds)] = ...
-            getPigeon_bounds(steps(1:trialCount), choices(1:trialCount));
+            dataTable_.RT(inds), ...
+            dataTable_.congruence{inds(1)}] = ...
+            getPigeon_bounds(steps(1:trialCount), choices(1:trialCount), ...
+            'SNR', snrs(1:trialCount));
         dataTable_.steps(inds) = steps(1:trialCount);
 
         % update index
@@ -199,3 +204,8 @@ end
 
 % Remove fluff
 dataTable_ = dataTable_(1:tableIndex-1,:);
+
+% Possibly correct biases
+if exist(options.correctBias, 'file')
+    dataTable_ = getPigeon_biasCorrections(dataTable_, options.correctBias);
+end

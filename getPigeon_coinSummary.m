@@ -15,7 +15,7 @@ function coinCounts_ = getPigeon_coinSummary(dataTable, options)
 %   10. snr
 %   11. steps (cell)
 %
-% Output is matrix of coin counts per subject (dim 1) and block (dim 2)
+% Output is matrix of coin counts per subject, block, snr
 
 arguments
     dataTable;

@@ -1,0 +1,213 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2636
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww22180\viewh19080\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # Global variables\
+# UPPERCASE: presumed constant throughout the experiment\
+# lowercase: presumed changeable\
+\
+# Local variables needed in JS:\
+still_going = True\
+choice = ''\
+\
+# Colors\
+# For JS:\
+#white = new util.Color([1, 1, 1]);\
+#grey = new util.Color([.2, .2, .2]);\
+#yellow = new util.Color([1, 1, 0]);\
+#green = new util.Color([-1, 0, -1]);\
+#lightgreen = new util.Color([0, 1, 0]);\
+#black = new util.Color([-1, -1, -1]);\
+#red = new util.Color([1, 0, 0]);\
+white=[1,1,1]\
+grey=[.2,.2,.2]\
+yellow=[1,1,0]\
+green=[-1,0,-1]\
+lightgreen=[0,1,0]\
+black=[-1,-1,-1]\
+red=[1,0,0]\
+\
+# Screen\
+ORIGIN_X = 0\
+ORIGIN_Y = 0\
+SEEDS_WIDTH = 0.1\
+SEEDS_HEIGHT = 0.1\
+EDGE_DISTANCE = 0.75\
+\
+# Messages\
+INSTRUCTION_X = ORIGIN_X\
+INSTRUCTION_Y = 0.45\
+INSTRUCTION_COLOR = yellow\
+CHOICE_STRING = 'Press Left or Right arrow to choose'\
+CONTINUE_STRING = 'Press Spacebar or any arrow to continue'\
+PREDEFINED_CHOICE_STRING='Press Left/Up for small/large increases, Right/Down for small/large decreases,\\nSpacebar to start the trial.'\
+PREDEFINED_NO_CHOICE_STRING='Petey failed to reach the bound\\nConsider moving it closer.'\
+PREDEFINED_ABORT_INSTRUCTION='Press Spacebar or any arrow to abort trial'\
+PREDEFINED_ABORT_STRING='Aborted early, no reward.'\
+CORRECT_STRING='Correct'\
+ERROR_STRING='Error'\
+MESSAGE_X = ORIGIN_X\
+MESSAGE_Y = 0.3\
+instruction_show = True\
+instruction_string = CONTINUE_STRING\
+message_show = True\
+message_string = ''\
+steps_string = ' '\
+coins_string = ' '\
+\
+# Status symbols\
+LINE_HEIGHT = 0.1\
+STATUS_BAR_HEIGHT = 0.2\
+STATUS_BAR_WIDTH = 0.1\
+STATUS_BAR_BASE_Y = ORIGIN_Y-0.4\
+STATUS_BAR_APEX_Y = STATUS_BAR_BASE_Y+STATUS_BAR_HEIGHT\
+STATUS_BAR_BRACKET_WIDTH =  0.35\
+ABSCISSA_Y = ORIGIN_Y-0.05\
+ABSCISSA_WIDTH = EDGE_DISTANCE*2\
+ORDINATE_Y = ORIGIN_Y+0.05\
+ORDINATE_WIDTH = 0.2\
+ORDINATE_HEIGHT = 0.01\
+COINS_BAR_X = -0.1\
+COINS_TEXT_X = -0.1\
+COINS_TEXT_Y = -0.37\
+COINS_LABEL_TEXT_X = -0.28\
+COINS_LABEL_TEXT_Y = -0.2\
+COINS_PROPERTIES_TEXT_X = -0.55\
+COINS_PROPERTIES_TEXT_Y = -0.3\
+STEPS_BAR_X = 0.1\
+STEPS_TEXT_X = 0.1\
+STEPS_TEXT_Y = -0.37\
+STEPS_LABEL_TEXT_X = 0.3\
+STEPS_LABEL_TEXT_Y = -0.2\
+STEPS_PROPERTIES_TEXT_X = 0.55\
+STEPS_PROPERTIES_TEXT_Y = -0.3\
+steps_bar_height = 0\
+steps_bar_center = 0\
+coins_bar_height = 0\
+coins_bar_center = 0\
+\
+# Predefined bound\
+PREDEFINED_BOUND_COLOR = green\
+PREDEFINED_BOUND_WIDTH = 0.2\
+PREDEFINED_BOUND_HEIGHT = 0.01\
+PREDEFINED_BOUND_Y = ORIGIN_Y+0.05\
+PREDEFINED_BOUND_SMALL_DELTA = 0.003\
+PREDEFINED_BOUND_LARGE_DELTA = 0.05\
+PREDEFINED_BOUND_X_DEFAULT = 0.05\
+PREDEFINED_BOUND_MARKER_SZ = 0.01\
+PREDEFINED_BOUND_MARKER_Y = 0.16\
+PREDEFINED_BOUND_MARKER_COLOR = lightgreen\
+predefined_bound_x = PREDEFINED_BOUND_X_DEFAULT\
+predefined_bound_x_previous = predefined_bound_x\
+\
+# Stimulus display\
+seeds_show = False\
+pigeon_show = False\
+status_show = False\
+box_show = False\
+\
+# Timing/counting\
+UPDATE_INTERVAL = 0.2\
+PREDEFINED_UPDATE_INTERVAL = 0.03\
+block_number = 0\
+trial_number = 0\
+trial_start = True\
+bonus_count = 0\
+\
+# Task conditions\
+STEPS_MAX_PER_TRIAL = 50\
+coins_gained_per_correct = 1\
+coins_lost_per_error = 1\
+coins_paid_to_start_trial = 0\
+coins_count = 2\
+coins_max = 8\
+steps_lost_per_error = 0\
+steps_taken_to_start_trial = 1\
+steps_count = 0\
+steps_max = 200\
+step_mean_val = 0.02\
+step_std_val = 0.1\
+\
+# Pigeon position\
+pigeon_flip = 0.1\
+pigeon_true_x = 0\
+pigeon_shown_x = pigeon_true_x\
+pigeon_steps = []\
+\
+# Function to move pigeon, depends on random variables\
+#   Note -- if you change this code, set code type to \
+#   "Auto->JS" first to make sure the JS code gets updated,\
+#   then set code type back to "both" and add the following\
+#   line at the top of this function:\
+#    global pigeon_flip, pigeon_true_x, pigeon_shown_x\
+def move_pigeon_function(step_mean, step_std):\
+    global pigeon_flip, pigeon_true_x, pigeon_shown_x\
+    \
+    for i in range(10):    \
+        u = 2*random()-1\
+        v = 2*random()-1\
+        r = u*u + v*v\
+        if r!=0 and r<1:\
+            break\
+    new_step = step_mean + step_std*u*sqrt(-2*log(r)/r)\
+    if new_step > 0:\
+        pigeon_flip = -0.1\
+    else:\
+        pigeon_flip = 0.1\
+\
+    pigeon_true_x = pigeon_true_x + new_step\
+    if pigeon_true_x >= EDGE_DISTANCE:\
+        pigeon_shown_x = EDGE_DISTANCE\
+    elif pigeon_true_x <= -EDGE_DISTANCE:\
+        pigeon_shown_x = -EDGE_DISTANCE\
+    else:\
+        pigeon_shown_x = pigeon_true_x\
+\
+# Function to update status text/graphics\
+#   Note -- if you change this code, set code type to \
+#   "Auto->JS" first to make sure the JS code gets updated,\
+#   then set code type back to "both" and add the following\
+#   line at the top of this function:\
+#    global coins_string, steps_string, coins_bar_height, coins_bar_center, steps_bar_height, steps_bar_center\
+def update_status_function(update_text, update_coins_bar, update_steps_bar):\
+    global coins_string, steps_string, coins_bar_height, coins_bar_center, steps_bar_height, steps_bar_center\
+\
+    # Conditionally update strings\
+    if update_text:\
+        coins_string = 'Coins gained per correct choice = ' + str(coins_gained_per_correct) + '\\nCoins lost per error choice = ' + str(coins_lost_per_error) + '\\nCoins paid to start each trial = ' + str(coins_paid_to_start_trial) + '\\nBonus target number of coins = ' + str(coins_max)\
+        steps_string = 'Total steps = ' + str(steps_max) + '\\nSteps lost per error choice = ' + str(steps_lost_per_error) + '\\nSteps taken to start each trial = ' + str(steps_taken_to_start_trial)\
+\
+    # Conditionally update coins bar\
+    if update_coins_bar:\
+        if coins_count <= coins_max:\
+            coins_bar_height = coins_count/coins_max*STATUS_BAR_HEIGHT\
+        else:\
+            coins_bar_height = STATUS_BAR_HEIGHT+0.02\
+        coins_bar_center = STATUS_BAR_BASE_Y+coins_bar_height/2\
+\
+    # Conditionally update steps bar\
+    if update_steps_bar:\
+        steps_bar_height = (steps_max-steps_count)/steps_max*STATUS_BAR_HEIGHT\
+        steps_bar_center = STATUS_BAR_BASE_Y+steps_bar_height/2\
+\
+# Function to generate standard string at the end of each block\
+#   Note -- if you change this code, set code type to \
+#   "Auto->JS" first to make sure the JS code gets updated,\
+#   then set code type back to "both" and add the following\
+#   line at the top of this function:\
+#    global message_string, bonus_count\
+def set_block_end_string_function(): \
+    global message_string, bonus_count\
+    if coins_count >= coins_max:\
+        message_string='Block finished.\\n\\nYou earned ' + str(coins_count) + ' coins plus a bonus. Great job!'\
+        bonus_count += 1\
+    else:\
+        message_string='Block finished.\\n\\nYou earned ' + str(coins_count) + ' coins. Great job!'\
+\
+move_pigeon = move_pigeon_function\
+update_status = update_status_function\
+set_block_end_string = set_block_end_string_function\
+update_status(True, True, True)}

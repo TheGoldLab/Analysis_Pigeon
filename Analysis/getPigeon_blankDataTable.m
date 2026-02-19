@@ -15,6 +15,7 @@ function dataTable_ = getPigeon_blankDataTable(numRows, varargin)
 %   9. coinCount
 %   10. snr
 %   11. steps (cell)
+%   12. congruence
 
 % Defaults
 variableNames = ...

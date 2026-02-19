@@ -21,59 +21,93 @@ arguments
     options.boundSlope          double = 0      % Time-dependent slope
     options.boundMax            double = 0.75;  % max, fixed by task geometry
     options.NDTMin              double = 1;     % non-decision time
-    options.NDTmax              double = 3;     % non-decision time
+    options.NDTMax              double = 3;     % non-decision time
     options.lapseRate           double = 0;     % fraction "guess" trials
     options.bounds              double = [];
 end
 
 % Make the DV per trial
 % Might be given multiple generativeMeans to interleave randomly
-nMeans = length(options.generativeMean);
-iMeans = randi(nMeans,options.numTrials,1);
-options.generativeMean = options.generativeMean(:);
-generativeMean = repmat(options.generativeMean(iMeans),1,options.maxStepsPerTrial);
+% check for special case of cp (full array of generativeMeans given
+if length(options.generativeMean) == options.maxStepsPerTrial
+    nMeans = 1;
+    generativeMean = repmat(options.generativeMean, options.numTrials, 1);
+else
+    nMeans = length(options.generativeMean);
+    iMeans = randi(nMeans,options.numTrials,1);
+    options.generativeMean = options.generativeMean(:);
+    generativeMean = repmat(options.generativeMean(iMeans),1,options.maxStepsPerTrial);
+end
+
+% generate NDTs
+if isscalar(options.NDTMin) || length(options.NDTMin)~=nMeans
+    if options.NDTMax(1) > options.NDTMin(1)
+        % uniform random between min and max
+        ndts = randi(options.NDTMax(1)-options.NDTMin(1)+1,options.numTrials,1)-options.NDTMin(1)+1;
+    else
+        % fixed value
+        ndts = options.NDTMin(1)*ones(options.numTrials,1);
+    end
+else
+    ndts = nan(options.numTrials,1);
+    for mm = 1:nMeans
+        Lm = iMeans==mm;
+        ndts(Lm) = randi(options.NDTMax(mm)-options.NDTMin(mm)+1,sum(Lm),1)-options.NDTMin(mm)+1;
+    end
+end
 
 % DV starts at zero
 DV = cat(2, zeros(options.numTrials, 1), cumsum(normrnd(...
     generativeMean, options.generativeSTD),2));
 
-% make array of bound means -- might be one per snr
-if ~isempty(options.bounds)
-    % if given an array of bounds, choose randomly
-    boundMean = options.bounds(randi(length(options.bounds), options.numTrials, 1));
+% make matrix of bounds
+if length(options.boundMean) == options.maxStepsPerTrial
+
+    % given full time course, just repeat it per trial
+    boundMatrix = repmat(options.boundMean(:)',options.numTrials,1);
+
 else
-    % if given parameters, parse mean/std
-    if length(options.boundMean) > 1 && length(options.boundMean) == nMeans
-        boundMean = options.boundMean(iMeans);
-        boundSTD = options.boundSTD(iMeans);
+
+    % Otherwise parse
+    if ~isempty(options.bounds)
+        % if given an array of bounds, put in same random order as gMeans
+        boundMean = options.bounds(randi(length(options.bounds), options.numTrials, 1));
+
     else
-        boundMean = repmat(options.boundMean(1), options.numTrials, 1);
-        boundSTD = repmat(options.boundSTD(1), options.numTrials, 1);
-    end
+        % if given parameters, parse mean/std
+        if length(options.boundMean) > 1 && length(options.boundMean) == nMeans
+            boundMean = options.boundMean(iMeans);
+            boundSTD = options.boundSTD(iMeans);
 
-    % Check for variable bound
-    LvariableBound = boundSTD > 0;
-    if any(LvariableBound)
-        % variable bound
-        boundMean(LvariableBound) = max(0.03, normrnd( ...
-            boundMean(LvariableBound), ...
-            boundSTD(LvariableBound)));
+        else
+            boundMean = repmat(options.boundMean(1), options.numTrials, 1);
+            boundSTD = repmat(options.boundSTD(1), options.numTrials, 1);
+        end
+
+        % Check for variable bound
+        LvariableBound = boundSTD > 0;
+        if any(LvariableBound)
+            % variable bound
+            boundMean(LvariableBound) = max(0.03, normrnd( ...
+                boundMean(LvariableBound), ...
+                boundSTD(LvariableBound)));
+        end
+    end
+    boundMatrix = repmat(boundMean(:), 1, options.maxStepsPerTrial+1);
+    if options.boundSlope~=0
+        boundMatrix = boundMatrix .* repmat(cat(2,linspace(1,options.boundSlope,10), ...
+            options.boundSlope.*ones(1,size(boundMatrix,2)-10)), options.numTrials, 1);
     end
 end
-boundMatrix = repmat(boundMean(:), 1, options.maxStepsPerTrial+1);
-if options.boundSlope~=0
-    boundMatrix = boundMatrix .* repmat(cat(2,linspace(1,options.boundSlope,10), ...
-        options.boundSlope.*ones(1,size(boundMatrix,2)-10)), options.numTrials, 1);
-end
 
-% Make array of non-decision times
-if options.NDTmax > options.NDTMin
-    % uniform random between min and max
-    ndts = randi(options.NDTmax-options.NDTMin+1,options.numTrials,1)-options.NDTMin+1;
-else
-    % fixed value
-    ndts = options.NDTMin*ones(options.numTrials,1);
-end
+% gcp = find(diff(generativeMean(1,:)),1);
+% bcp = find(diff(boundMatrix(1,:)),1);
+% if isempty(gcp)
+%     fprintf('No cp\n')
+% else
+%     fprintf('gmean cp at %d, bound cp at %d (%.2f, %.2f)\n', ...
+%         gcp+1, bcp+1, boundMatrix(1,bcp), boundMatrix(1,bcp+1));
+% end
 
 % To save
 choices = nans(options.numTrials, 1);

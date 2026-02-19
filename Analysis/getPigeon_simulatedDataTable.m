@@ -18,9 +18,9 @@ arguments
     options.boundSlope = 0;
     options.boundMax = 0.75;
     options.NDTMin = 2;
-    options.NDTmax = 3;
+    options.NDTMax = 3;
     options.lapseRate = 0;
-    options.boundType = 'given'; %'fixed', 'true', 'var', 'varBySNR'
+    options.boundType = 'given'; %'fixed', 'true', 'var', 'varBySNR', 'changepoint', 'cp'
     options.stepsPerBlock = 600;
     options.P2Psteps = 1;
     options.P2Pcoins = 0;
@@ -32,13 +32,14 @@ arguments
 end
 
 % hard-coding in definitions of blocks 1-6 in Alice's data
+% added Ishan
 blockDefaults = struct( ...
-    'stepsPerBlock',            repmat({options.stepsPerBlock}, 1, 6), ...
-    'P2Psteps',                 {1 1 1 1 1 1}, ...
-    'P2Pcoins',                 {0 0 0 0 0 0}, ...
-    'coinsGainedPerCorrect',    {1 1 1 1 1 1}, ...
-    'coinsLostPerError',        {0 4 0 0 4 0}, ...
-    'stepsLostPerError',        {0 0 30 0 0 30});
+    'stepsPerBlock',            repmat({options.stepsPerBlock}, 1, 7), ...
+    'P2Psteps',                 {1 1 1 1 1 1 1}, ...
+    'P2Pcoins',                 {0 0 0 0 0 0 0}, ...
+    'coinsGainedPerCorrect',    {1 1 1 1 1 1 1}, ...
+    'coinsLostPerError',        {0 4 0 0 4 0 1}, ...
+    'stepsLostPerError',        {0 0 30 0 0 30 0});
 
 % Make blockSpecs -- matrix of option structs to run simulations
 %   rows are subjects
@@ -64,11 +65,30 @@ if nargin >= 1 && istable(dataTable)
         Lb = Lgood & dataTable.blockIndex==blocks(bb);
         aSNRs = abs(dataTable.snr);
         for ss = 1:numSubjects
-            Lbs = Lb & dataTable.subjectIndex==subjects(ss);
+            Lsub = dataTable.subjectIndex==subjects(ss);
+            Lbs = Lb & Lsub;
             SNRs = nonanunique(aSNRs(Lbs));
             blockSpecs(ss,bb).generativeMean = SNRs .* ...
                 blockSpecs(ss,bb).generativeSTD;
             nSNRs = length(SNRs);
+
+            % parse non-decision time ... possibly make arrays of min/max
+            % per generativeMean
+            if bb == 1
+                congruences = dataTable.congruence{find(Lsub,1)};
+                if size(congruences,2) == nSNRs
+                    blockSpecs(ss,bb).NDTMin = nan(1,nSNRs);
+                    blockSpecs(ss,bb).NDTMax = nan(1,nSNRs);
+                    for rr = 1:nSNRs
+                        [~,I] = sort(congruences(:,rr));
+                        blockSpecs(ss,bb).NDTMin(rr) = min(I(end-1:end));
+                        blockSpecs(ss,bb).NDTMax(rr) = max(I(end-1:end));
+                    end
+                end
+            else
+                blockSpecs(ss,bb).NDTMin = blockSpecs(ss,1).NDTMin;
+                blockSpecs(ss,bb).NDTMax = blockSpecs(ss,1).NDTMax;
+            end
             % parse bound type
             switch blockSpecs(ss,bb).boundType
                 case 'given'
@@ -85,7 +105,7 @@ if nargin >= 1 && istable(dataTable)
                     absBounds = abs(dataTable.bound(Lbs));
                     blockSpecs(ss,bb).boundMean = median(absBounds,'omitnan');
                     blockSpecs(ss,bb).boundSTD = std(absBounds,'omitnan');
-                case 'changepoint'
+                case 'changepoint' % Ishan's way
                     Lpc = Lbs & (dataTable.DT < dataTable.changePoint);
                     blockSpecs(ss,bb).changePoint = nonanunique(dataTable.changePoint(Lbs));
                     blockSpecs(ss,bb).boundMean = NaN(options.maxStepsPerTrial,1);
@@ -118,10 +138,28 @@ elseif nargin >= 1 && isstruct(dataTable)
     blocks = nonanunique(dataTable.blocks);
     numBlocks = length(blocks);
     blockSpecs = repmat(options, dataTable.numSubjects, numBlocks);
-    for bb = 1:numBlocks
-        % Add block defaults
-        for ff = fieldnames(blockDefaults)'
-            [blockSpecs(:,bb).(ff{:})] = deal(blockDefaults(blocks(bb)).(ff{:}));
+
+    % Possible cp, Josh's way
+    if strcmp(options.boundType, 'cp')
+        for bb = 1:numBlocks
+            for ff = fieldnames(blockDefaults)'
+                [blockSpecs(:,bb).(ff{:})] = deal(blockDefaults(2).(ff{:}));
+            end
+            for ss = 1:size(blockSpecs,1)
+                blockSpecs(ss,bb).boundSTD = 0;
+                blockSpecs(ss,bb).boundMean = repmat(options.boundMean(1),1,options.maxStepsPerTrial);
+                blockSpecs(ss,bb).boundMean(dataTable.blocks(bb):end) = options.boundMean(2);
+                blockSpecs(ss,bb).generativeMean = repmat(options.generativeMean(1),1,options.maxStepsPerTrial);
+                blockSpecs(ss,bb).generativeMean(dataTable.blocks(bb):end) = options.generativeMean(2);
+            end
+        end
+
+    else
+        for bb = 1:numBlocks
+            % Add block defaults
+            for ff = fieldnames(blockDefaults)'
+                [blockSpecs(:,bb).(ff{:})] = deal(blockDefaults(blocks(bb)).(ff{:}));
+            end
         end
     end
 end
@@ -135,7 +173,7 @@ tableIndex = 1;
 argNames = {'generativeMean', 'generativeSTD', 'numTrials', ...
     'maxStepsPerTrial', 'boundMean', 'boundSTD', ...
     'boundSlope', 'boundMax', 'NDTMin', ...
-    'NDTmax', 'lapseRate', 'bounds'};
+    'NDTMax', 'lapseRate', 'bounds'};
 args = cell(1,length(argNames)*2);
 args(1:2:end) = argNames;
 

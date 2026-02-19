@@ -18,21 +18,23 @@ function RRMatrix_ = getPigeon_RRMatrix(options)
 
 arguments
     options.bounds = 0.01:0.05:0.8;
-    options.boundSTD = 0.1;
+    options.boundSTD = 0;
     options.numReps = 100;
     options.gMeans = [0.05 0.15];
     options.gSTD = 0.15;
     options.blocks = 1:3;
-    options.blockType = 'OL'; % 'OL' or 'MX'
+    options.blockType = 'OL'; % 'OL', 'MX', or 'CP'
     options.axes = [];
 end
 
 numBounds = length(options.bounds);
 numBlocks = length(options.blocks);
-RRMatrix_ = zeros(numBounds, numBounds, numBlocks);
 simParams = struct('numSubjects', options.numReps, 'blocks', options.blocks);
+RRMatrix_ = zeros(numBounds, numBounds, numBlocks);
 
 if strcmpi(options.blockType, 'MX')
+
+    % set sim params
 
     % Mixed block SNR
     for b1 = 1:numBounds
@@ -51,7 +53,8 @@ if strcmpi(options.blockType, 'MX')
                 'splitBySNR', false));
         end
     end
-else
+
+elseif strcmpi(options.blockType, 'OL')
     
     % Blockwise SNR
     for b1 = 1:numBounds
@@ -74,8 +77,29 @@ else
 
         % Save reward rates
         for bb = 1:numBlocks % for each block
-            RRMatrix_(:,b1,bb) = RRMatrix_(:,b1,bb,1) + mean(loCoinCounts(:,bb));
-            RRMatrix_(b1,:,bb) = RRMatrix_(b1,:,bb,1) + mean(hiCoinCounts(:,bb));
+            RRMatrix_(:,b1,bb) = RRMatrix_(:,b1,bb) + mean(loCoinCounts(:,bb));
+            RRMatrix_(b1,:,bb) = RRMatrix_(b1,:,bb) + mean(hiCoinCounts(:,bb));
+        end
+    end
+
+else
+
+    % Change-point trials
+    for b1 = 1:numBounds
+        disp([b1 numBounds])
+        for b2 = 1:numBounds
+            disp([b1 b2 numBounds])
+
+            % mixed SNR block
+            cpSNRTable = getPigeon_simulatedDataTable(simParams, ...
+                'generativeMean',   options.gMeans, ...
+                'generativeSTD',    options.gSTD, ...
+                'boundType',        'cp', ...
+                'boundMean',        options.bounds([b1 b2]));
+
+            % Save reward rates
+            RRMatrix_(b1,b2,:) = mean(getPigeon_coinSummary(cpSNRTable, ...
+                'splitBySNR', false));
         end
     end
 end

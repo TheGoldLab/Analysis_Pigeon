@@ -17,8 +17,8 @@ function [bounds_, dts_, rts_, congruences_] = getPigeon_bounds(steps, choices, 
 arguments
     steps
     choices
-    options.maxNDT = 4;
-    options.minRT = 2; % min steps needed to compute bound
+    options.maxNDT = 5;
+    options.minRT = 1; % min steps needed to compute bound
     options.SNR = [];
 end
 
@@ -29,11 +29,14 @@ boundMatrix = zeros(numTrials,options.maxNDT); % assume default zero bound (gues
 rts_ = nan(numTrials,1);
 for ii = 1:numTrials
 
+    % Get these steps
+    theseSteps = steps{ii}(isfinite(steps{ii}));
+
     % Parse bound based on maxNDT last steps
-    rts_(ii) = length(steps{ii});
+    rts_(ii) = length(theseSteps);
 
     % Get final steps to parse bound
-    finalSteps = fliplr(steps{ii}(max(rts_(ii)-options.maxNDT,1):end));
+    finalSteps = fliplr(theseSteps(max(rts_(ii)-options.maxNDT,1):end));
 
     % bounds are midpoints
     if length(finalSteps) > 1
@@ -41,7 +44,7 @@ for ii = 1:numTrials
     end
 end
 
-% Check for congrudences by SNR and NDT
+% Check for congruences by SNR and NDT
 if isempty(options.SNR)
     options.SNR = zeros(numTrials,1); % dummy array
 end

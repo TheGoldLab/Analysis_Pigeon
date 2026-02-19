@@ -1,5 +1,5 @@
-function Figure03_mixedBoundSummary(dataTable, options)
-% function Figure03_mixedBoundSummary(dataTable, options)
+function Figure03_boundSummary(dataTable, options)
+% function Figure03_boundSummary(dataTable, options)
 %
 % dataTable is dataTableMX, with columns:
 %   1. subjectIndex
@@ -15,144 +15,137 @@ function Figure03_mixedBoundSummary(dataTable, options)
 %   11. steps (cell)
 arguments
     dataTable
-    options.exampleSubject = 2;
+    options.exampleSubject = 16;
     options.blockIndex = 2;
     options.figureNumber = 3;
 end
 
 %% Set up figure
 %
-wid     = 11.6; % total width
-cols    = {2,2,4,2};
+wid     = 8.5; % total width
+cols    = {1,1,2,1};
 hts     = [4 4 2 4];
 [axs,~] = getPLOT_axes(options.figureNumber, wid, hts, cols, 1.3, 1.5, [], 'Pigeons', true);
-set(axs,'Units','normalized');
-wt = ones(3,1).*0.99;
+%set(axs,'Units','normalized');
+
+% colors
+gr = ones(3,1).*0.5;
+wh = ones(3,1).*0.99;
 
 %% Collect data per subject/snr
 subjects = nonanunique(dataTable.subjectIndex);
 numSubjects = length(subjects);
-aSNRs = abs(dataTable.snr);
-uSNRs = unique(aSNRs);
-numSNRs = length(uSNRs);
 numTimeBins = 10;
 abounds = abs(dataTable.bound); % absolute values of bounds
 zbounds = abounds; % z-scored (abs) bounds, per subject
 dbounds = [nan; diff(abounds)]; % delta bounds
-boundByDTData = nan(numSubjects,numTimeBins,numSNRs);
-boundVsDTData = nan(numSubjects,4,numSNRs);  % rows are mean/sem bound, mean/sem DT
-regressionData = nan(numSubjects, 2, numSNRs); % boundVsDT, deltaBoundVsBound
-titles = {'Low SNR', 'High SNR'};
+boundByDTData = nan(numSubjects,numTimeBins);
+boundVsDTData = nan(numSubjects,4);  % rows are mean/sem bound, mean/sem DT
+boundBySideData = nan(numSubjects,2); % diff of medians, p for diff
+regressionData = nan(numSubjects, 2); % boundVsDT, deltaBoundVsBound
 
-Lg = isfinite(dataTable.bound) & dataTable.blockIndex == options.blockIndex;
+aSNRs = abs(dataTable.snr);
+Lg = isfinite(dataTable.bound) & aSNRs==min(aSNRs) & dataTable.blockIndex==options.blockIndex;
 Lgr = dataTable.DT >= 2;
+Lrl = [Lg&dataTable.choice==0 Lg&dataTable.choice==1];
 for ss = 1:numSubjects
     Ls = Lg & dataTable.subjectIndex == subjects(ss);
-    for rr = 1:numSNRs
-        Lr = Ls & aSNRs == uSNRs(rr);
 
-        % Collect z-scored bound per DT
-        zbounds(Lr) = zscore(abounds(Lr));
-        for dd = 1:numTimeBins
-            Ld = Lr & dataTable.DT==dd;
-            if sum(Ld) > 2
-                boundByDTData(ss,dd,rr) = mean(zbounds(Ld));
-            end
+    % Collect z-scored bound per DT
+    zbounds(Ls) = zscore(abounds(Ls));
+    for dd = 1:numTimeBins
+        Ld = Ls & dataTable.DT==dd;
+        if any(Ld) %sum(Ld) > 2
+            boundByDTData(ss,dd) = mean(zbounds(Ld));
         end
+    end
 
-        % Possibly show example
-        if ss == options.exampleSubject
-            axes(axs(rr)); cla reset; hold on;
-            title(titles{rr});
-            xs = dataTable.DT(Lr);
-            ys = abounds(Lr);
-            plot(xs, ys, 'ko', 'MarkerFaceColor', 0.99.*ones(1,3));
-            for dd = 1:15
-                plot(dd,mean(ys(xs==dd)),'ro', 'MarkerFaceColor', 'r')
-            end
-            axis([0 15 0 1]);
-            if rr == 1
-                ylabel('Final position (a.u.)')
-            end
+    % Compare left/right
+    leftBounds = -dataTable.bound(Ls&Lrl(:,1));
+    rightBounds = dataTable.bound(Ls&Lrl(:,2));
+    boundBySideData(ss,:) = [ ...
+        median(rightBounds)-median(leftBounds), ...
+        ranksum(rightBounds, leftBounds)];
+
+    % Possibly show example
+    if ss == options.exampleSubject
+        axes(axs(1)); cla reset; hold on;
+        xs = dataTable.DT(Ls);
+        ys = abounds(Ls);
+        plot(xs, ys, 'ko', 'MarkerFaceColor', wh);
+        for dd = 1:15
+            plot(dd,mean(ys(xs==dd)),'ro', 'MarkerFaceColor', 'r')
         end
+        axis([1 10 0 1]);
+        ylabel('Bound')
+    end
 
-        % Collect mean/sem bound and DT
-        boundVsDTData(ss,:,rr) = [ ...
-            mean(abounds(Lr), 'omitnan'), ...
-            sem(abounds(Lr)), ...
-            mean(dataTable.DT(Lr), 'omitnan'), ...
-            sem(dataTable.DT(Lr)), ...
-            ];
+    % Collect mean/sem bound and DT
+    boundVsDTData(ss,:) = [ ...
+        mean(abounds(Ls), 'omitnan'), ...
+        sem(abounds(Ls)), ...
+        mean(dataTable.DT(Ls), 'omitnan'), ...
+        sem(dataTable.DT(Ls)), ...
+        ];
 
-        % regression bound vs RT
-        Lreg = Lr & Lgr;
-        if sum(Lreg) > 5
-            xs = ones(sum(Lreg),2);
-            xs(:,2) = dataTable.DT(Lreg);
-            b = regress(abounds(Lreg), xs);
-            regressionData(ss,1,rr) = b(2);
-        end
+    % regression bound vs RT
+    Lreg = Ls & Lgr;
+    if sum(Lreg) > 5
+        xs = ones(sum(Lreg),2);
+        xs(:,2) = dataTable.DT(Lreg);
+        b = regress(abounds(Lreg), xs);
+        regressionData(ss,1) = b(2);
+    end
 
-        % regression deltaBound vs bound
-        if sum(Lr) > 5
-            xs = ones(sum(Lr),2);
-            xs(:,2) = abounds(Lr);
-            deltaBounds = dbounds(Lr);
-            b = regress(deltaBounds(2:end), xs(2:end,:));
-            regressionData(ss,2,rr) = b(2);
-        end
+    % regression deltaBound vs bound
+    if sum(Ls) > 5
+        xs = ones(sum(Ls),2);
+        xs(:,2) = abounds(Ls);
+        deltaBounds = dbounds(Ls);
+        b = regress(deltaBounds(2:end), xs(2:end,:));
+        regressionData(ss,2) = b(2);
     end
 end
 
 %% Second row is bound summary
-for rr = 1:2 % For each SNR
-    axes(axs(2+rr)); cla reset; hold on;
-    plot(boundByDTData(:,:,rr)', '-', 'Color', 0.5.*ones(1,3));
-    plot(mean(boundByDTData(:,:,rr), 'omitnan'), 'r-', 'LineWidth', 2)
-    axis([1 10 -2 2])
-    if rr == 1
-        xlabel('DT (steps)')
-        ylabel('Final position (z-score)')
-    end
-end
+axes(axs(2)); cla reset; hold on;
+plot(boundByDTData(:,:)', '-', 'Color', gr);
+plot(mean(boundByDTData(:,:), 'omitnan'), 'r-', 'LineWidth', 2)
+axis([1 10 -2 2])
+xlabel('DT (steps)')
+ylabel('Final position (z-score)')
 
 %% Third row is regression histograms
 xlabels = {'Slope Bound Vs DT', 'Slope Delta Bound Vs Bound'};
-hax = {-0.15:0.03:0.15, 0:0.2:2};
+hax = {-0.04:0.008:0.04, 0:0.15:2};
 offset = [0 1];
-for rr = 1:2 % For each SNR
-    for hh = 1:2 % For each histogram
-        axes(axs(4+(rr-1)*2+hh)); cla reset; hold on;
-        histogram(regressionData(:,hh,rr), hax{hh});
-        fprintf('median [IQR]=%.2f [%.2f %.2f], p=%.2f\n', ...
-            prctile(regressionData(:,hh,rr), 50), ...
-            prctile(regressionData(:,hh,rr), 25), ...
-            prctile(regressionData(:,hh,rr), 75), ...
-            signrank(regressionData(:,hh,rr)-offset(hh)))
-        if rr==1
-            xlabel(xlabels{hh})
-            if hh==1
-                ylabel('Count')
-            end
-        end
-
+for hh = 1:2 % For each histogram
+    axes(axs(2+hh)); cla reset; hold on;
+    histogram(regressionData(:,hh), hax{hh});
+    fprintf('median [IQR]=%.2f [%.2f %.2f], p=%.3f\n', ...
+        prctile(regressionData(:,hh), 50), ...
+        prctile(regressionData(:,hh), 25), ...
+        prctile(regressionData(:,hh), 75), ...
+        signrank(regressionData(:,hh)-offset(hh)))
+    plot(prctile(regressionData(:,hh), 50).*[1 1], [0 20], 'r:')
+    xlabel(xlabels{hh})
+    if hh==1
+        ylabel('Count')
     end
 end
 
 %% Fourth row is bound vs DT per subject
 % plot data
-for rr = 1:2
-    axes(axs(8+rr)); cla reset; hold on;
-    errorbar(boundVsDTData(:,3,rr), boundVsDTData(:,1,rr), ...
-    0.5.*boundVsDTData(:,2,rr), 0.5.*boundVsDTData(:,2,rr), ...
-    0.5.*boundVsDTData(:,4,rr), 0.5.*boundVsDTData(:,4,rr), ...
-    'ko', 'MarkerFaceColor', wt);
-    axis([0 10 0 0.75])
-    if rr == 1
-        xlabel('DT (steps)')
-        ylabel('Bound')
-    end
-end
+axes(axs(5)); cla reset; hold on;
+errorbar(boundVsDTData(:,3), boundVsDTData(:,1), ...
+    0.5.*boundVsDTData(:,2), 0.5.*boundVsDTData(:,2), ...
+    0.5.*boundVsDTData(:,4), 0.5.*boundVsDTData(:,4), ...
+    'ko', 'MarkerFaceColor', wh);
+[R,P] = corr(boundVsDTData(:,3), boundVsDTData(:,1),'type', 'Spearman');
+fprintf('Spearman=%.3f,p=%.3f\n',R,P)
+axis([0 10 0 0.75])
+xlabel('DT (steps)')
+ylabel('Bound')
 
 % 
 % 

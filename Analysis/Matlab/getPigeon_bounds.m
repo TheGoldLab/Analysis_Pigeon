@@ -1,4 +1,4 @@
-function [bounds_, dts_, rts_, congruences_] = getPigeon_bounds(steps, choices, options)%, trueBound)
+           function [bounds_, dts_, rts_, congruences_] = getPigeon_bounds(steps, choices, options)%, trueBound)
 % function [bounds_, dts_, rts_, congruences_, boundMinMax_] = getPigeon_bounds(steps, choices, maxNDT, trueBound)
 %
 % Arguments:
